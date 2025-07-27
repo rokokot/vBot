@@ -1,6 +1,20 @@
+import { useEffect } from 'react';
 import { Plus, BookOpen, TrendingUp } from 'lucide-react';
+import { useBookStore } from '../stores/bookStore';
 
 const Home = () => {
+  const { books, fetchBooks } = useBookStore();
+
+  useEffect(() => {
+    fetchBooks();
+  }, [fetchBooks]);
+
+  const thisWeekCount = books.filter(book => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return book.createdAt > oneWeekAgo;
+  }).length;
+
   return (
     <div className="p-4 pb-20">
       <header className="mb-8">
@@ -27,24 +41,36 @@ const Home = () => {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <BookOpen className="text-blue-500 mb-2" size={24} />
             <h4 className="font-medium text-gray-900">Books Listed</h4>
-            <p className="text-2xl font-bold text-gray-900">0</p>
+            <p className="text-2xl font-bold text-gray-900">{books.length}</p>
           </div>
           
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <TrendingUp className="text-green-500 mb-2" size={24} />
             <h4 className="font-medium text-gray-900">This Week</h4>
-            <p className="text-2xl font-bold text-gray-900">0</p>
+            <p className="text-2xl font-bold text-gray-900">{thisWeekCount}</p>
           </div>
         </div>
       </div>
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-        <div className="text-center py-8 text-gray-500">
-          <BookOpen size={48} className="mx-auto mb-4 opacity-30" />
-          <p>No books added yet</p>
-          <p className="text-sm">Tap the scan button to add your first book!</p>
-        </div>
+        {books.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <BookOpen size={48} className="mx-auto mb-4 opacity-30" />
+            <p>No books added yet</p>
+            <p className="text-sm">Tap the scan button to add your first book!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {books.slice(0, 5).map((book) => (
+              <div key={book.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900">{book.title}</h3>
+                <p className="text-sm text-gray-600">by {book.author}</p>
+                <p className="text-sm text-teal-600">€{book.price}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

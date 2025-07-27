@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Book, Photo, ConditionTemplate } from '../../types/index.js';
+import type { Book, Photo, ConditionTemplate } from '../../types/index';
 
 export class BookDatabase extends Dexie {
   books!: Table<Book>;

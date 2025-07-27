@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { ArrowLeft, Save } from 'lucide-react';
-import { useBookStore } from '@stores/bookStore';
-import { BookCondition } from '@types/index';
+import { useBookStore } from '../stores/bookStore';
+import type { BookCondition } from '../types/index';
 
-const BookEntry = ({ onBack }: { onBack: () => void }) => {
+interface BookEntryProps {
+  onBack: () => void;
+}
+
+const BookEntry = ({ onBack }: BookEntryProps) => {
   const { addBook, isLoading } = useBookStore();
   
   const [formData, setFormData] = useState({
@@ -16,8 +20,8 @@ const BookEntry = ({ onBack }: { onBack: () => void }) => {
     price: 0,
   });
 
-  const [condition, setCondition] = useState<BookCondition>({
-    primary: 'good' as const,
+  const [condition] = useState<BookCondition>({
+    primary: 'good',
     issues: [],
     customNotes: '',
     generatedDescription: 'Good condition',
@@ -26,6 +30,8 @@ const BookEntry = ({ onBack }: { onBack: () => void }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.title || !formData.author) return;
+
     try {
       await addBook({
         ...formData,
@@ -45,7 +51,7 @@ const BookEntry = ({ onBack }: { onBack: () => void }) => {
         price: 0,
       });
       
-      onBack(); // Go back to home
+      onBack();
     } catch (error) {
       console.error('Failed to add book:', error);
     }
@@ -64,19 +70,6 @@ const BookEntry = ({ onBack }: { onBack: () => void }) => {
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ISBN
-          </label>
-          <input
-            type="text"
-            value={formData.isbn}
-            onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-            placeholder="978-0123456789"
-          />
-        </div>
-
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Title *
@@ -107,27 +100,6 @@ const BookEntry = ({ onBack }: { onBack: () => void }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Condition
-          </label>
-          <select
-            value={condition.primary}
-            onChange={(e) => setCondition({
-              ...condition,
-              primary: e.target.value as BookCondition['primary'],
-              generatedDescription: `${e.target.value.replace('-', ' ')} condition`
-            })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="like-new">Like New</option>
-            <option value="very-good">Very Good</option>
-            <option value="good">Good</option>
-            <option value="fair">Fair</option>
-            <option value="poor">Poor</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
             Price (€)
           </label>
           <input
@@ -138,19 +110,6 @@ const BookEntry = ({ onBack }: { onBack: () => void }) => {
             onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
             placeholder="0.00"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes
-          </label>
-          <textarea
-            value={formData.customNotes}
-            onChange={(e) => setFormData({ ...formData, customNotes: e.target.value })}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-            placeholder="Additional notes about the book..."
           />
         </div>
 
