@@ -2,6 +2,9 @@ import { useState } from 'react';
 import Navigation from './components/common/Navigation';
 import Home from './pages/Home';
 import BookEntry from './pages/BookEntry';
+import Library from './pages/Library';
+import Export from './pages/Export';
+import Settings from './pages/Settings';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -13,11 +16,11 @@ function App() {
       case 'scan':
         return <BookEntry onBack={() => setCurrentPage('home')} />;
       case 'library':
-        return <div className="p-4 pb-20"><h1 className="text-xl font-bold">Library (Coming Soon)</h1></div>;
+        return <Library />; // ← CHANGE THIS LINE
       case 'export':
-        return <div className="p-4 pb-20"><h1 className="text-xl font-bold">Export (Coming Soon)</h1></div>;
+        return <Export />;
       case 'settings':
-        return <div className="p-4 pb-20"><h1 className="text-xl font-bold">Settings (Coming Soon)</h1></div>;
+        return <Settings />;
       default:
         return <Home />;
     }
