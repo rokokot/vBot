@@ -87,7 +87,7 @@ const BookEdit = ({ book, onBack, onSave }: BookEditProps) => {
     
     // Auto-generate description based on condition
     if (field === 'primary') {
-      const descriptions = {
+      const descriptions: Record<string, string> = {
         'like-new': 'Like new condition',
         'very-good': 'Very good condition',
         'good': 'Good condition',
@@ -348,7 +348,7 @@ const BookEdit = ({ book, onBack, onSave }: BookEditProps) => {
               </label>
               <select
                 value={condition.primary}
-                onChange={(e) => handleConditionChange('primary', e.target.value)}
+                onChange={(e) => handleConditionChange('primary', e.target.value as BookCondition['primary'])}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
                 <option value="like-new">Like New</option>
