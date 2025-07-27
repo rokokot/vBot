@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import path from 'path'
 
 export default defineConfig({
   plugins: [
@@ -13,7 +12,7 @@ export default defineConfig({
         name: 'Vinted Book Listing App',
         short_name: 'BookLister',
         description: 'Streamline your book listing workflow for Vinted',
-        theme_color: '#42d6c5ff',
+        theme_color: '#42d6c5',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait-primary',
@@ -34,18 +33,18 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@pages': path.resolve(__dirname, './src/pages'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@services': path.resolve(__dirname, './src/services'),
-      '@stores': path.resolve(__dirname, './src/stores'),
-      '@types': path.resolve(__dirname, './src/types'),
-      '@utils': path.resolve(__dirname, './src/utils')
+      '@': '/src',
+      '@components': '/src/components',
+      '@pages': '/src/pages',
+      '@hooks': '/src/hooks',
+      '@services': '/src/services',
+      '@stores': '/src/stores',
+      '@types': '/src/types',
+      '@utils': '/src/utils'
     }
   },
   server: {
     host: true,
-    port: 3000
+    port: 5173
   }
 })

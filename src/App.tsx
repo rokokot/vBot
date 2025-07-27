@@ -1,35 +1,33 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import Navigation from './components/common/Navigation';
+import Home from './pages/Home';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState('home');
+
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'home':
+        return <Home />;
+      case 'scan':
+        return <div className="p-4 pb-20"><h1 className="text-xl font-bold">Scanner (Coming Soon)</h1></div>;
+      case 'library':
+        return <div className="p-4 pb-20"><h1 className="text-xl font-bold">Library (Coming Soon)</h1></div>;
+      case 'export':
+        return <div className="p-4 pb-20"><h1 className="text-xl font-bold">Export (Coming Soon)</h1></div>;
+      case 'settings':
+        return <div className="p-4 pb-20"><h1 className="text-xl font-bold">Settings (Coming Soon)</h1></div>;
+      default:
+        return <Home />;
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="min-h-screen bg-gray-50">
+      {renderCurrentPage()}
+      <Navigation activeTab={currentPage} onTabChange={setCurrentPage} />
+    </div>
+  );
 }
 
-export default App
+export default App;
