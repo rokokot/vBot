@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, Copy, FileText, Share2 } from 'lucide-react';
+import { Download, Copy, FileText } from 'lucide-react';
 import { useBookStore } from '../stores/bookStore';
 import type { Book } from '../types/index';
 
