@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [
@@ -42,6 +43,27 @@ export default defineConfig({
       '@types': '/src/types',
       '@utils': '/src/utils'
     }
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        // Main React app
+        main: resolve(__dirname, 'index.html'),
+        // Chrome extension files
+        popup: resolve(__dirname, 'src/extension/popup.html'),
+        background: resolve(__dirname, 'src/extension/background.ts'),
+        content: resolve(__dirname, 'src/extension/content.ts'),
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          // Keep extension files in root for proper loading
+          if (['background', 'content'].includes(chunkInfo.name)) {
+            return '[name].js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
+      },
+    },
   },
   server: {
     host: true,

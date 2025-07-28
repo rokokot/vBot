@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Vinted Book Lister",
+  "version": "1.0.0",
+  "description": "Streamline your book listing workflow for Vinted with automatic form filling",
+  
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab"
+  ],
+  
+  "host_permissions": [
+    "https://vinted.com/*",
+    "https://www.vinted.com/*",
+    "https://*.vinted.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://vinted.com/items/new*",
+        "https://www.vinted.com/items/new*",
+        "https://*.vinted.com/items/new*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Vinted Book Lister",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "assets/*"],
+      "matches": ["https://*.vinted.com/*"]
+    }
+  ]
+}
