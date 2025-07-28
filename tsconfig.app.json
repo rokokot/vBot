@@ -6,6 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "types": ["chrome"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -31,9 +32,8 @@
       "@services/*": ["./src/services/*"],
       "@stores/*": ["./src/stores/*"],
       "@types/*": ["./src/types/*"],
-      "@utils/*": ["./src/utils/*"]}
-
-    
+      "@utils/*": ["./src/utils/*"]
+    }
   },
   "include": ["src"]
 }

@@ -495,13 +495,33 @@ export const useBookData = (): UseBookDataReturn => {
           throw new Error('Invalid format: expected array of books');
         }
 
-        return await store.importBooks?.(books) || { imported: 0, skipped: 0, errors: ['Import not supported'] };
+        // Check if store has importBooks method
+        if (!store.importBooks) {
+          throw new Error('Import functionality not available');
+        }
+
+        const result = await store.importBooks(books);
+        
+        // Convert the result to match the expected interface
+        return {
+          imported: result.imported,
+          skipped: result.skipped,
+          errors: result.invalid > 0 ? [`${result.invalid} books had invalid data and were skipped`] : []
+        };
       } catch (error) {
-        throw new Error(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        return {
+          imported: 0,
+          skipped: 0,
+          errors: [error instanceof Error ? error.message : 'Unknown error']
+        };
       }
     }
 
-    throw new Error('Unsupported import format');
+    return {
+      imported: 0,
+      skipped: 0,
+      errors: ['Unsupported import format']
+    };
   }, [store]);
 
   const generateVintedDescription = useCallback((

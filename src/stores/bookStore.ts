@@ -18,17 +18,34 @@ interface BookStore {
   // Extension-specific methods
   syncWithExtension: () => Promise<void>;
   exportBooks: () => Promise<Book[]>;
-  importBooks: (books: Book[]) => Promise<void>;
+  importBooks: (books: Book[]) => Promise<{
+    imported: number;
+    skipped: number;
+    invalid: number;
+  }>;
 }
 
-// Check if running in Chrome extension context
+// Check if we're running in Chrome extension context
 const isExtensionContext = (): boolean => {
-  return !!(
-    typeof chrome !== 'undefined' && 
-    chrome.runtime && 
-    chrome.runtime.id &&
-    chrome.storage
-  );
+  try {
+    return !!(
+      typeof window !== 'undefined' &&
+      'chrome' in window && 
+      window.chrome?.runtime && 
+      window.chrome?.runtime?.id &&
+      window.chrome?.storage
+    );
+  } catch {
+    return false;
+  }
+};
+
+// Safe Chrome API access
+const getChromeAPI = () => {
+  if (typeof window !== 'undefined' && window.chrome) {
+    return window.chrome;
+  }
+  return null;
 };
 
 // Storage abstraction layer
@@ -36,8 +53,12 @@ class BookStorage {
   static async getBooks(): Promise<Book[]> {
     if (isExtensionContext()) {
       try {
-        const result = await chrome.storage.local.get(['books']);
-        return result.books || [];
+        const chromeAPI = getChromeAPI();
+        if (chromeAPI?.storage?.local) {
+          const result = await chromeAPI.storage.local.get(['books']);
+          return result.books || [];
+        }
+        return [];
       } catch (error) {
         console.error('Chrome storage error:', error);
         return [];
@@ -55,7 +76,12 @@ class BookStorage {
   static async saveBooks(books: Book[]): Promise<void> {
     if (isExtensionContext()) {
       try {
-        await chrome.storage.local.set({ books });
+        const chromeAPI = getChromeAPI();
+        if (chromeAPI?.storage?.local) {
+          await chromeAPI.storage.local.set({ books });
+        } else {
+          throw new Error('Chrome storage not available');
+        }
       } catch (error) {
         console.error('Chrome storage save error:', error);
         throw new Error('Failed to save to Chrome storage');
@@ -297,7 +323,10 @@ export const useExtensionStore = () => {
     // Extension-specific methods
     clearAllData: async () => {
       if (isExtensionContext()) {
-        await chrome.storage.local.clear();
+        const chromeAPI = getChromeAPI();
+        if (chromeAPI?.storage?.local) {
+          await chromeAPI.storage.local.clear();
+        }
         store.fetchBooks();
       } else {
         await db.delete();
@@ -308,21 +337,24 @@ export const useExtensionStore = () => {
     
     getStorageInfo: async () => {
       if (isExtensionContext()) {
-        const result = await chrome.storage.local.get(null);
-        const size = JSON.stringify(result).length;
-        return {
-          type: 'chrome',
-          itemCount: Object.keys(result).length,
-          sizeEstimate: `${Math.round(size / 1024)} KB`
-        };
-      } else {
-        const books = await db.books.count();
-        return {
-          type: 'indexeddb',
-          itemCount: books,
-          sizeEstimate: 'Unknown'
-        };
+        const chromeAPI = getChromeAPI();
+        if (chromeAPI?.storage?.local) {
+          const result = await chromeAPI.storage.local.get(null);
+          const size = JSON.stringify(result).length;
+          return {
+            type: 'chrome' as const,
+            itemCount: Object.keys(result).length,
+            sizeEstimate: `${Math.round(size / 1024)} KB`
+          };
+        }
       }
+      
+      const books = await db.books.count();
+      return {
+        type: 'indexeddb' as const,
+        itemCount: books,
+        sizeEstimate: 'Unknown'
+      };
     }
   };
 };
