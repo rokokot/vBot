@@ -1,8 +1,34 @@
-// src/hooks/useBookOperations.ts
+// src/hooks/useBookOperations.ts - Fixed version
 import { useState, useCallback, useMemo } from 'react';
 import { useBookStore } from '../stores/bookStore';
-import { BookOperationsService, type BookCreateData, type BookUpdateData } from '../services/bookOperations';
 import type { Book } from '../types/index';
+
+export interface BookCreateData {
+  isbn: string;
+  title: string;
+  author: string;
+  publisher: string;
+  description: string;
+  condition: Book['condition'];
+  customNotes: string;
+  photos: Book['photos'];
+  price: number;
+  isArchived: boolean;
+}
+
+export interface BookUpdateData {
+  isbn?: string;
+  title?: string;
+  author?: string;
+  publisher?: string;
+  description?: string;
+  condition?: Book['condition'];
+  customNotes?: string;
+  photos?: Book['photos'];
+  price?: number;
+  isArchived?: boolean;
+  updatedAt?: Date;
+}
 
 export interface UseBookOperationsReturn {
   // State
@@ -43,21 +69,23 @@ export const useBookOperations = (): UseBookOperationsReturn => {
 
     try {
       // Validate the book data
-      const validation = BookOperationsService.validateBook(bookData);
+      const validation = validateBook(bookData);
       if (!validation.isValid) {
         throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
       }
 
-      // Enrich with API data if possible
-      const enrichedData = await BookOperationsService.enrichBookData(bookData);
-      
       // Create complete book object
-      const completeBookData = BookOperationsService.createCompleteBook(enrichedData as BookCreateData);
+      const completeBook: Book = {
+        ...bookData,
+        id: crypto.randomUUID(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       
       // Add to store
-      await store.addBook(completeBookData);
+      await store.addBook(bookData);
       
-      return completeBookData;
+      return completeBook;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create book';
       setError(errorMessage);
@@ -78,10 +106,10 @@ export const useBookOperations = (): UseBookOperationsReturn => {
       }
 
       // Create updated book data
-      const updatedBook = BookOperationsService.updateBookData(existingBook, updates);
+      const updatedBook = { ...existingBook, ...updates, updatedAt: new Date() };
       
       // Validate the updated book
-      const validation = BookOperationsService.validateBook(updatedBook);
+      const validation = validateBook(updatedBook);
       if (!validation.isValid) {
         throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
       }
@@ -145,16 +173,13 @@ export const useBookOperations = (): UseBookOperationsReturn => {
     setError(null);
 
     try {
-      const result = await BookOperationsService.bulkArchiveBooks(
-        bookIds, 
-        archive, 
-        store.updateBook
-      );
-
-      if (result.failed > 0) {
-        const errorMessages = result.errors.map(e => e.error).join(', ');
-        throw new Error(`${result.failed} operations failed: ${errorMessages}`);
+      const updates = { isArchived: archive, updatedAt: new Date() };
+      
+      // Process updates one by one to avoid conflicts
+      for (const id of bookIds) {
+        await store.updateBook(id, updates);
       }
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Bulk archive operation failed';
       setError(errorMessage);
@@ -169,15 +194,11 @@ export const useBookOperations = (): UseBookOperationsReturn => {
     setError(null);
 
     try {
-      const result = await BookOperationsService.bulkDeleteBooks(
-        bookIds,
-        store.deleteBook
-      );
-
-      if (result.failed > 0) {
-        const errorMessages = result.errors.map(e => e.error).join(', ');
-        throw new Error(`${result.failed} deletions failed: ${errorMessages}`);
+      // Process deletions one by one
+      for (const id of bookIds) {
+        await store.deleteBook(id);
       }
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Bulk delete operation failed';
       setError(errorMessage);
@@ -196,11 +217,11 @@ export const useBookOperations = (): UseBookOperationsReturn => {
     setError(null);
 
     try {
-      const books = bookIds
-        .map(id => store.getBookById(id))
-        .filter((book): book is Book => book !== undefined);
+      // Process updates one by one to avoid conflicts
+      for (const id of bookIds) {
+        const book = store.getBookById(id);
+        if (!book) continue;
 
-      const updates = books.map(book => {
         let newPrice: number;
         
         switch (type) {
@@ -217,12 +238,8 @@ export const useBookOperations = (): UseBookOperationsReturn => {
             newPrice = book.price;
         }
 
-        return { book, newPrice: Math.round(newPrice * 100) / 100 }; // Round to 2 decimal places
-      });
-
-      // Process updates one by one to avoid conflicts
-      for (const { book, newPrice } of updates) {
-        await store.updateBook(book.id, { price: newPrice });
+        const roundedPrice = Math.round(newPrice * 100) / 100; // Round to 2 decimal places
+        await store.updateBook(id, { price: roundedPrice });
       }
 
     } catch (err) {
@@ -235,7 +252,53 @@ export const useBookOperations = (): UseBookOperationsReturn => {
   }, [store]);
 
   const validateBook = useCallback((bookData: Partial<Book>) => {
-    return BookOperationsService.validateBook(bookData);
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Required fields
+    if (!bookData.title?.trim()) {
+      errors.push('Title is required');
+    }
+
+    if (!bookData.author?.trim()) {
+      errors.push('Author is required');
+    }
+
+    // Warnings for missing recommended fields
+    if (!bookData.isbn?.trim()) {
+      warnings.push('ISBN is recommended for better searchability');
+    }
+
+    if (!bookData.publisher?.trim()) {
+      warnings.push('Publisher information helps with book identification');
+    }
+
+    if (!bookData.price || bookData.price <= 0) {
+      warnings.push('Price should be set for selling purposes');
+    }
+
+    if (!bookData.photos || bookData.photos.length === 0) {
+      warnings.push('Photos are highly recommended for Vinted listings');
+    }
+
+    // Validate ISBN format if provided
+    if (bookData.isbn) {
+      const cleanISBN = bookData.isbn.replace(/[^0-9X]/g, '');
+      if (cleanISBN.length !== 10 && cleanISBN.length !== 13) {
+        warnings.push('ISBN format may be invalid (should be 10 or 13 digits)');
+      }
+    }
+
+    // Validate price range
+    if (bookData.price && (bookData.price < 0.01 || bookData.price > 9999)) {
+      errors.push('Price should be between €0.01 and €9999');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
   }, []);
 
   return {
@@ -310,19 +373,73 @@ export const useBookFilters = (books: Book[]): UseBookFiltersReturn => {
   }, []);
 
   const filteredBooks = useMemo(() => {
-    // First filter
-    const filtered = BookOperationsService.filterBooks(books, {
-      searchTerm: searchTerm || undefined,
-      condition: filters.condition === 'all' ? undefined : filters.condition,
-      priceMin: filters.priceMin,
-      priceMax: filters.priceMax,
-      isArchived: filters.isArchived,
-      hasPhotos: filters.hasPhotos,
-      hasISBN: filters.hasISBN,
+    // Filter books
+    let filtered = books.filter(book => {
+      // Search term (title, author, ISBN)
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const matchesSearch = 
+          book.title.toLowerCase().includes(term) ||
+          book.author.toLowerCase().includes(term) ||
+          (book.isbn && book.isbn.includes(term)) ||
+          (book.publisher && book.publisher.toLowerCase().includes(term));
+        
+        if (!matchesSearch) return false;
+      }
+
+      // Condition filter
+      if (filters.condition && filters.condition !== 'all') {
+        if (book.condition.primary !== filters.condition) return false;
+      }
+
+      // Price range
+      if (filters.priceMin !== undefined && book.price < filters.priceMin) return false;
+      if (filters.priceMax !== undefined && book.price > filters.priceMax) return false;
+
+      // Archive status
+      if (filters.isArchived !== undefined && book.isArchived !== filters.isArchived) return false;
+
+      // Has photos
+      if (filters.hasPhotos !== undefined) {
+        const hasPhotos = book.photos && book.photos.length > 0;
+        if (hasPhotos !== filters.hasPhotos) return false;
+      }
+
+      // Has ISBN
+      if (filters.hasISBN !== undefined) {
+        const hasISBN = book.isbn && book.isbn.trim().length > 0;
+        if (hasISBN !== filters.hasISBN) return false;
+      }
+
+      return true;
     });
 
-    // Then sort
-    return BookOperationsService.sortBooks(filtered, sortBy, sortOrder);
+    // Sort books
+    return filtered.sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortBy) {
+        case 'title':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'author':
+          comparison = a.author.localeCompare(b.author);
+          break;
+        case 'price':
+          comparison = a.price - b.price;
+          break;
+        case 'createdAt':
+          comparison = a.createdAt.getTime() - b.createdAt.getTime();
+          break;
+        case 'updatedAt':
+          comparison = a.updatedAt.getTime() - b.updatedAt.getTime();
+          break;
+        default:
+          return 0;
+      }
+
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
   }, [books, searchTerm, filters, sortBy, sortOrder]);
 
   return {
@@ -421,10 +538,9 @@ export const useBookStats = (books: Book[]): BookStats => {
   }, [books]);
 };
 
-// Hook for book export/import operations
+// Hook for book export operations
 export interface UseBookDataReturn {
   exportBooks: (format: 'json' | 'csv' | 'vinted') => Promise<string>;
-  importBooks: (data: string, format: 'json') => Promise<{ imported: number; skipped: number; errors: string[] }>;
   generateVintedDescription: (book: Book, options?: { includeISBN?: boolean; useEmojis?: boolean; language?: 'en' | 'fr' | 'de' }) => string;
   copyToClipboard: (text: string) => Promise<boolean>;
 }
@@ -470,7 +586,7 @@ export const useBookData = (): UseBookDataReturn => {
         return books
           .filter(book => !book.isArchived)
           .map((book, index) => {
-            const description = BookOperationsService.generateVintedDescription(book, {
+            const description = generateVintedDescription(book, {
               includeISBN: true,
               useEmojis: true,
               language: 'en'
@@ -485,55 +601,85 @@ export const useBookData = (): UseBookDataReturn => {
     }
   }, [store.books]);
 
-  const importBooks = useCallback(async (data: string, format: 'json') => {
-    if (format === 'json') {
-      try {
-        const parsed = JSON.parse(data);
-        const books = parsed.books || parsed; // Handle both wrapped and unwrapped formats
-
-        if (!Array.isArray(books)) {
-          throw new Error('Invalid format: expected array of books');
-        }
-
-        // Check if store has importBooks method
-        if (!store.importBooks) {
-          throw new Error('Import functionality not available');
-        }
-
-        const result = await store.importBooks(books);
-        
-        // Convert the result to match the expected interface
-        return {
-          imported: result.imported,
-          skipped: result.skipped,
-          errors: result.invalid > 0 ? [`${result.invalid} books had invalid data and were skipped`] : []
-        };
-      } catch (error) {
-        return {
-          imported: 0,
-          skipped: 0,
-          errors: [error instanceof Error ? error.message : 'Unknown error']
-        };
-      }
-    }
-
-    return {
-      imported: 0,
-      skipped: 0,
-      errors: ['Unsupported import format']
-    };
-  }, [store]);
-
   const generateVintedDescription = useCallback((
     book: Book, 
     options: { includeISBN?: boolean; useEmojis?: boolean; language?: 'en' | 'fr' | 'de' } = {}
   ): string => {
-    return BookOperationsService.generateVintedDescription(book, {
-      includeISBN: true,
-      useEmojis: true,
-      language: 'en',
-      ...options
-    });
+    const { includeISBN = true, useEmojis = true, language = 'en' } = options;
+    
+    const texts = {
+      en: {
+        by: 'by',
+        published: 'Published by',
+        isbn: 'ISBN',
+        condition: 'Condition',
+        notes: 'Notes',
+        perfect: 'Perfect for book lovers!',
+        shipping: 'Fast shipping',
+        smoke: 'Smoke-free home'
+      },
+      fr: {
+        by: 'par',
+        published: 'Éditions',
+        isbn: 'ISBN',
+        condition: 'État',
+        notes: 'Notes',
+        perfect: 'Parfait pour les amoureux de lecture!',
+        shipping: 'Envoi rapide',
+        smoke: 'Maison non-fumeur'
+      },
+      de: {
+        by: 'von',
+        published: 'Verlag',
+        isbn: 'ISBN',
+        condition: 'Zustand',
+        notes: 'Notizen',
+        perfect: 'Perfekt für Buchliebhaber!',
+        shipping: 'Schneller Versand',
+        smoke: 'Nichtraucherhaushalt'
+      }
+    };
+
+    const t = texts[language];
+    let description = '';
+
+    // Title and author
+    if (useEmojis) {
+      description += `📚 ${book.title}\n`;
+      description += `✍️ ${t.by} ${book.author}\n`;
+      if (book.publisher) description += `🏢 ${t.published} ${book.publisher}\n`;
+      if (includeISBN && book.isbn) description += `📖 ${t.isbn}: ${book.isbn}\n`;
+    } else {
+      description += `${book.title}\n`;
+      description += `${t.by} ${book.author}\n`;
+      if (book.publisher) description += `${t.published} ${book.publisher}\n`;
+      if (includeISBN && book.isbn) description += `${t.isbn}: ${book.isbn}\n`;
+    }
+
+    description += '\n';
+
+    // Condition
+    if (book.condition) {
+      const conditionText = book.condition.generatedDescription || book.condition.primary;
+      description += useEmojis ? `📋 ${t.condition}: ${conditionText}\n` : `${t.condition}: ${conditionText}\n`;
+    }
+
+    // Description
+    if (book.description) {
+      description += `\n${book.description}\n`;
+    }
+
+    // Custom notes
+    if (book.customNotes) {
+      description += `\n${t.notes}: ${book.customNotes}\n`;
+    }
+
+    // Footer
+    description += useEmojis ? 
+      `\n📚 ${t.perfect}\n📦 ${t.shipping} | 🚭 ${t.smoke}` : 
+      `\n${t.perfect}\n${t.shipping} | ${t.smoke}`;
+
+    return description;
   }, []);
 
   const copyToClipboard = useCallback(async (text: string): Promise<boolean> => {
@@ -548,7 +694,6 @@ export const useBookData = (): UseBookDataReturn => {
 
   return {
     exportBooks,
-    importBooks,
     generateVintedDescription,
     copyToClipboard,
   };

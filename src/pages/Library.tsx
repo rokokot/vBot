@@ -1,7 +1,9 @@
+// src/pages/Library.tsx - Clean version without errors
 import { useEffect, useState } from 'react';
-import { Search, Filter, Edit, Trash2, Archive, Copy, Plus } from 'lucide-react';
+import { Search, Filter, Edit, Trash2, Archive, Copy, Plus, Share2 } from 'lucide-react';
 import { useBookStore } from '../stores/bookStore';
 import BookEdit from './BookEdit';
+import ImageTransfer from '../components/common/ImageTransfer';
 import type { Book } from '../types/index';
 
 const Library = () => {
@@ -9,6 +11,7 @@ const Library = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [transferringBook, setTransferringBook] = useState<Book | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filterCondition, setFilterCondition] = useState<string>('all');
   const [showArchived, setShowArchived] = useState(false);
@@ -44,12 +47,19 @@ const Library = () => {
 
   const handleEditBook = (book: Book) => {
     setEditingBook(book);
-    setSelectedBook(null); // Close detail modal if open
+    setSelectedBook(null);
+    setTransferringBook(null);
+  };
+
+  const handleTransferImages = (book: Book) => {
+    setTransferringBook(book);
+    setSelectedBook(null);
+    setEditingBook(null);
   };
 
   const handleEditSave = () => {
     setEditingBook(null);
-    fetchBooks(); // Refresh the list
+    fetchBooks();
   };
 
   const generateVintedDescription = (book: Book) => {
@@ -79,6 +89,18 @@ ${book.description ? `\nDescription: ${book.description}` : ''}${notes}
         onBack={() => setEditingBook(null)}
         onSave={handleEditSave}
       />
+    );
+  }
+
+  // If transferring images, show the transfer component
+  if (transferringBook) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <ImageTransfer
+          book={transferringBook}
+          onClose={() => setTransferringBook(null)}
+        />
+      </div>
     );
   }
 
@@ -200,11 +222,13 @@ ${book.description ? `\nDescription: ${book.description}` : ''}${notes}
                         <p className="text-xs text-gray-500">{book.publisher}</p>
                       )}
                     </div>
-                    {book.photos && book.photos.length > 0 && (
-                      <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        📸 {book.photos.length}
-                      </div>
-                    )}
+                    <div className="flex gap-1">
+                      {book.photos && book.photos.length > 0 && (
+                        <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          📸 {book.photos.length}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -223,6 +247,17 @@ ${book.description ? `\nDescription: ${book.description}` : ''}${notes}
               )}
               
               <div className="flex gap-2 flex-wrap">
+                {/* Priority action: Transfer Images (if photos exist) */}
+                {book.photos && book.photos.length > 0 && (
+                  <button
+                    onClick={() => handleTransferImages(book)}
+                    className="flex items-center px-3 py-1 text-xs bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200 font-medium"
+                  >
+                    <Share2 size={14} className="mr-1" />
+                    Transfer to Vinted ({book.photos.length})
+                  </button>
+                )}
+                
                 <button
                   onClick={() => copyToClipboard(generateVintedDescription(book))}
                   className="flex items-center px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
@@ -267,6 +302,13 @@ ${book.description ? `\nDescription: ${book.description}` : ''}${notes}
                   Delete
                 </button>
               </div>
+
+              {/* Compact Image Transfer for books with photos */}
+              {book.photos && book.photos.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <ImageTransfer book={book} compact={true} />
+                </div>
+              )}
             </div>
           ))
         )}
@@ -352,6 +394,14 @@ ${book.description ? `\nDescription: ${book.description}` : ''}${notes}
             </div>
             
             <div className="mt-6 flex gap-2">
+              {selectedBook.photos && selectedBook.photos.length > 0 && (
+                <button
+                  onClick={() => handleTransferImages(selectedBook)}
+                  className="flex-1 bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700"
+                >
+                  Transfer to Vinted
+                </button>
+              )}
               <button
                 onClick={() => handleEditBook(selectedBook)}
                 className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700"
@@ -360,9 +410,9 @@ ${book.description ? `\nDescription: ${book.description}` : ''}${notes}
               </button>
               <button
                 onClick={() => copyToClipboard(generateVintedDescription(selectedBook))}
-                className="flex-1 bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700"
+                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
               >
-                Copy for Vinted
+                Copy Description
               </button>
               <button
                 onClick={() => setSelectedBook(null)}
